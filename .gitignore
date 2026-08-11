@@ -1,0 +1,15 @@
+node_modules/
+.next/
+.vercel/
+.open-next/
+.wrangler/
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
+coverage/
+*.log
+.tools/
+node-portable.zip
+.npmfix/
+tsconfig.tsbuildinfo
