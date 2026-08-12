@@ -1,6 +1,8 @@
-import { CalendarDays, ChevronLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { isValid, parseISO } from "date-fns";
+import Image from "next/image";
 import Link from "next/link";
+import moleIcon from "@/app/mole-icon.png";
 import { BoardAutoRefresh } from "@/app/board-auto-refresh";
 import { MonthlyCalendar } from "@/app/monthly-calendar";
 import { ThemeToggle } from "@/app/theme-toggle";
@@ -29,7 +31,7 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
   return (
     <main className="board-shell">
       <header className="simple-header board-header">
-        <div className="board-title"><span><CalendarDays size={25} /></span><div><b>반차 전광판</b><small>월간 반차 현황을 한눈에 확인하세요.</small></div></div>
+        <div className="board-title"><span className="brand-icon"><Image src={moleIcon} alt="" priority /></span><div><b>반차 전광판</b><small>월간 반차 현황을 한눈에 확인하세요.</small></div></div>
         <div className="header-actions"><BoardAutoRefresh /><ThemeToggle /><Link className="back-link" href="/"><ChevronLeft size={19} /> 반차관리</Link></div>
       </header>
       <MonthlyCalendar month={month} leaves={leaves} unavailabilities={unavailabilities} expanded mode="board" />

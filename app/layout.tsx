@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import moleIcon from "@/app/mole-icon.png";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "반차관리",
   description: "방송기술팀의 반차와 대근 공백을 한눈에 관리합니다.",
+  icons: { icon: moleIcon.src, apple: moleIcon.src },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

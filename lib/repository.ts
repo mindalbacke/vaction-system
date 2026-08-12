@@ -1,9 +1,20 @@
-import type { Employee, LeaveRequest, MonthlyLeave, MonthlyUnavailability, SubstituteRequest, SubstituteUnavailability } from "@/lib/domain";
+import type { Employee, LeaveRequest, MonthlyLeave, MonthlyUnavailability, SubstituteCandidateResponse, SubstituteRequest, SubstituteUnavailability } from "@/lib/domain";
 import { getSql, isDatabaseConfigured } from "@/lib/db";
 import { createDemoSnapshot } from "@/lib/demo-data";
 import { getAudioShift } from "@/lib/rotation";
 
 type DbRow = Record<string, unknown>;
+
+function parseSubstituteCandidates(value: unknown): SubstituteCandidateResponse[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== "object") return [];
+    const row = candidate as Record<string, unknown>;
+    const priority = Number(row.priority);
+    if ((priority !== 1 && priority !== 2) || !row.employeeId || !row.employeeName) return [];
+    return [{ employeeId: String(row.employeeId), employeeName: String(row.employeeName), priority } as SubstituteCandidateResponse];
+  });
+}
 
 function resolveShift(row: DbRow, date: string, audioIndex: number): Pick<Employee, "shift" | "shiftStart" | "shiftEnd"> {
   if (row.role === "조명보조") return { shift: "R", shiftStart: "13:00", shiftEnd: "21:00" };
@@ -51,6 +62,7 @@ export async function getDashboardSnapshot(date: string) {
         requester.id::text AS requester_id, requester.name AS requester_name,
         lr.leave_type,
         substitute.id::text AS substitute_id, substitute.name AS substitute_name,
+        candidate_list.candidates,
         coverage.news_names,
         to_char(COALESCE(coverage.coverage_start, sr.start_datetime) AT TIME ZONE 'Asia/Seoul','HH24:MI') AS calculated_start,
         to_char(COALESCE(coverage.coverage_end, sr.end_datetime) AT TIME ZONE 'Asia/Seoul','HH24:MI') AS calculated_end,
@@ -59,6 +71,16 @@ export async function getDashboardSnapshot(date: string) {
       JOIN leave_requests lr ON lr.id = sr.leave_request_id AND lr.cancelled = false
       JOIN employees requester ON requester.id = sr.requester_id
       LEFT JOIN employees substitute ON substitute.id = sr.substitute_employee_id
+      LEFT JOIN LATERAL (
+        SELECT jsonb_agg(jsonb_build_object(
+          'employeeId', candidate_employee.id::text,
+          'employeeName', candidate_employee.name,
+          'priority', candidate.priority
+        ) ORDER BY candidate.priority) AS candidates
+        FROM substitute_candidates candidate
+        JOIN employees candidate_employee ON candidate_employee.id = candidate.employee_id
+        WHERE candidate.substitute_request_id = sr.id
+      ) candidate_list ON true
       LEFT JOIN LATERAL (
         SELECT string_agg(npt.program_name, '|||' ORDER BY dns.actual_start_datetime) AS news_names,
           min(dns.actual_start_datetime - make_interval(mins => dns.preparation_minutes)) AS coverage_start,
@@ -120,6 +142,7 @@ export async function getDashboardSnapshot(date: string) {
     part: row.leave_type as SubstituteRequest["part"], start: String(row.calculated_start), end: String(row.calculated_end),
     substituteId: row.substitute_id ? String(row.substitute_id) : undefined,
     substituteName: row.substitute_name ? String(row.substitute_name) : undefined,
+    candidates: parseSubstituteCandidates(row.candidates),
     newsNames: row.news_names ? String(row.news_names).split("|||") : [],
     status: String(row.status),
   }));
@@ -136,12 +159,23 @@ export async function getMonthlyLeaves(month: string): Promise<MonthlyLeave[]> {
   if (!isDatabaseConfigured()) return [];
   const rows = await getSql()`
     SELECT lr.id::text, lr.employee_id::text, e.name AS employee_name, e.role,
-      lr.leave_date::text, lr.leave_type, lr.notes, substitute.name AS substitute_name
+      lr.leave_date::text, lr.leave_type, lr.notes, substitute.name AS substitute_name,
+      candidate_list.candidates
     FROM leave_requests lr
     JOIN employees e ON e.id = lr.employee_id
     LEFT JOIN substitute_requests request ON request.leave_request_id = lr.id
       AND request.status <> '반차 취소'
     LEFT JOIN employees substitute ON substitute.id = request.substitute_employee_id
+    LEFT JOIN LATERAL (
+      SELECT jsonb_agg(jsonb_build_object(
+        'employeeId', candidate_employee.id::text,
+        'employeeName', candidate_employee.name,
+        'priority', candidate.priority
+      ) ORDER BY candidate.priority) AS candidates
+      FROM substitute_candidates candidate
+      JOIN employees candidate_employee ON candidate_employee.id = candidate.employee_id
+      WHERE candidate.substitute_request_id = request.id
+    ) candidate_list ON true
     WHERE lr.leave_date >= ${month}::date
       AND lr.leave_date < (${month}::date + INTERVAL '1 month')
       AND lr.cancelled = false
@@ -151,6 +185,7 @@ export async function getMonthlyLeaves(month: string): Promise<MonthlyLeave[]> {
     id: String(row.id), employeeId: String(row.employee_id), employeeName: String(row.employee_name),
     leaveDate: String(row.leave_date), part: row.leave_type as MonthlyLeave["part"],
     note: row.notes ? String(row.notes) : undefined,
+    substituteCandidates: parseSubstituteCandidates(row.candidates),
     substituteName: row.substitute_name ? String(row.substitute_name) : undefined,
     substituteRequired: row.role !== "서무" && row.role !== "중계보조",
   }));

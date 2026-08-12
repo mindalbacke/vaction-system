@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 const REFRESH_INTERVAL = 60_000;
 
-export function BoardAutoRefresh() {
+export function BoardAutoRefresh({ context = "반차 현황" }: { context?: string }) {
   const router = useRouter();
 
   useEffect(() => {
@@ -21,5 +21,5 @@ export function BoardAutoRefresh() {
     };
   }, [router]);
 
-  return <span className="auto-refresh-status" title="60초마다 최신 반차 현황을 불러옵니다."><i aria-hidden="true" /> 1분 자동 갱신</span>;
+  return <span className="auto-refresh-status" title={`60초마다 최신 ${context}을 불러옵니다.`}><i aria-hidden="true" /> 1분 자동 갱신</span>;
 }

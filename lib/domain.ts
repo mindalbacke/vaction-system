@@ -24,8 +24,12 @@ export interface SubstituteRequest {
   requesterId: string; requesterName: string;
   part: LeavePart; start: string; end: string;
   substituteId?: string; substituteName?: string;
+  candidates: SubstituteCandidateResponse[];
   newsNames: string[];
   status: string;
+}
+export interface SubstituteCandidateResponse {
+  employeeId: string; employeeName: string; priority: 1 | 2;
 }
 export interface SubstituteUnavailability {
   id: string; employeeId: string; employeeName: string;
@@ -35,6 +39,7 @@ export interface SubstituteUnavailability {
 export interface MonthlyLeave {
   id: string; employeeId: string; employeeName: string; leaveDate: string; part: LeavePart;
   note?: string;
+  substituteCandidates: SubstituteCandidateResponse[];
   substituteName?: string; substituteRequired: boolean;
 }
 export interface MonthlyUnavailability {
@@ -51,4 +56,28 @@ export interface DashboardSnapshot {
   leaves: LeaveRequest[]; substitutes: SubstituteRequest[];
   unavailabilities: SubstituteUnavailability[];
   databaseConnected: boolean;
+}
+
+export interface ScheduleEmployee {
+  id: string;
+  name: string;
+  role: EmployeeRole;
+  color: number;
+}
+
+export interface DailyWorkAssignment {
+  employeeId: string;
+  employeeName: string;
+  role: EmployeeRole;
+  workDate: string;
+  shift: Extract<ShiftCode, "A" | "R" | "U"> | "직접";
+  start: string;
+  end: string;
+}
+
+export interface AudioAPeriod {
+  employeeId: string;
+  employeeName: string;
+  startDate: string;
+  endDate: string;
 }

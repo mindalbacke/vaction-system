@@ -1,7 +1,9 @@
-import { Ban, CalendarDays, Check, ChevronLeft, ChevronRight, Settings, Tv, Umbrella } from "lucide-react";
+import { Ban, CalendarClock, CalendarDays, Check, ChevronLeft, ChevronRight, Settings, Tv, Umbrella } from "lucide-react";
 import { addDays, format, isValid, parseISO } from "date-fns";
 import { ko } from "date-fns/locale";
+import Image from "next/image";
 import Link from "next/link";
+import moleIcon from "@/app/mole-icon.png";
 import { cancelLeave } from "@/app/actions";
 import { CalendarEntryActions } from "@/app/calendar-entry-actions";
 import { LeaveForm } from "@/app/leave-form";
@@ -28,14 +30,18 @@ function dateHref(date: string, amount: number) {
 function Dashboard({ snapshot, calendarMonth, monthlyLeaves, monthlyUnavailabilities, unavailabilityList }: { snapshot: DashboardSnapshot; calendarMonth?: string; monthlyLeaves: MonthlyLeave[]; monthlyUnavailabilities: MonthlyUnavailability[]; unavailabilityList: SubstituteUnavailability[] }) {
   const { date, employees, leaves, substitutes, unavailabilities } = snapshot;
   const substituteByLeave = new Map(substitutes.map((request) => [request.leaveId, request]));
+  const employeeById = new Map(employees.map((employee) => [employee.id, employee]));
 
   return (
     <main className="simple-shell">
       <header className="simple-header">
-        <Link className="simple-brand" href="/">
-          <span>반</span>
-          <div><b>반차관리</b></div>
-        </Link>
+        <div className="simple-header-left">
+          <Link className="simple-brand" href="/">
+            <span className="brand-icon"><Image src={moleIcon} alt="" priority /></span>
+            <div><b>반차관리</b></div>
+          </Link>
+          <Link className="settings-link schedule-link" href={{ pathname: "/schedule", query: { month: date.slice(0, 7), date } }} target="_blank" rel="noopener noreferrer"><CalendarClock size={19} /> 근무표</Link>
+        </div>
         <div className="header-actions">
           <ThemeToggle />
           <Link className="settings-link board-link" href={{ pathname: "/board", query: { month: date.slice(0, 7) } }}><Tv size={19} /> 전광판</Link>
@@ -75,10 +81,11 @@ function Dashboard({ snapshot, calendarMonth, monthlyLeaves, monthlyUnavailabili
           <div className="leave-feed">
             {leaves.map((leave) => {
               const request = substituteByLeave.get(leave.id);
-              const leaveEmployee = employees.find((employee) => employee.id === leave.employeeId);
+              const leaveEmployee = employeeById.get(leave.employeeId);
               const substituteRequired = leaveEmployee?.role !== "서무" && leaveEmployee?.role !== "중계보조";
-              const candidates = employees.filter((employee) =>
+              const eligibleEmployees = employees.filter((employee) =>
                 employee.id !== leave.employeeId
+                && !request?.candidates.some((candidate) => candidate.employeeId === employee.id)
                 && (employee.substituteEligible || (employee.role === "서무" && request !== undefined && request.end <= "13:00"))
                 && !employee.leavePart
                 && !unavailabilities.some((unavailable) =>
@@ -87,18 +94,21 @@ function Dashboard({ snapshot, calendarMonth, monthlyLeaves, monthlyUnavailabili
                   && overlaps({ start: unavailable.dayStart, end: unavailable.dayEnd }, { start: request.start, end: request.end })
                 )
               );
-              const candidateOptions = request ? candidates.map((employee) => {
+              const candidateOptions = request ? eligibleEmployees.map((employee) => {
                 const reference = getReferenceSubstituteShift(
                   { start: employee.shiftStart, end: employee.shiftEnd },
                   { start: request.start, end: request.end },
                 );
                 return { id: employee.id, name: employee.name, role: employee.role, referenceStart: reference.start, referenceEnd: reference.end };
               }) : [];
-              const confirmedEmployee = request?.substituteId ? employees.find((employee) => employee.id === request.substituteId) : undefined;
-              const confirmedReference = request && confirmedEmployee ? getReferenceSubstituteShift(
-                { start: confirmedEmployee.shiftStart, end: confirmedEmployee.shiftEnd },
-                { start: request.start, end: request.end },
-              ) : undefined;
+              const rankedCandidates = request?.candidates.map((candidate) => {
+                const employee = employeeById.get(candidate.employeeId);
+                const reference = employee ? getReferenceSubstituteShift(
+                  { start: employee.shiftStart, end: employee.shiftEnd },
+                  { start: request.start, end: request.end },
+                ) : undefined;
+                return { ...candidate, role: employee?.role, reference };
+              }) ?? [];
               return (
                 <article className="leave-feed-item" key={leave.id}>
                   <div className="leave-person">
@@ -115,10 +125,23 @@ function Dashboard({ snapshot, calendarMonth, monthlyLeaves, monthlyUnavailabili
 
                   {!substituteRequired ? (
                     <p className="substitute-not-required">{leaveEmployee?.role} 반차는 대근이 필요하지 않습니다.</p>
-                  ) : request?.substituteName ? (
-                    <div className="substitute-confirmed"><Check size={19} /><span>대근 <b>{request.substituteName}</b> 확정 · 필수 {request.start}–{request.end}{confirmedReference ? ` · EX ${confirmedReference.start}–${confirmedReference.end}` : ""}</span></div>
                   ) : request ? (
-                    <SubstituteAcceptForm requestId={request.id} candidates={candidateOptions} connected={snapshot.databaseConnected} />
+                    <div className="substitute-candidate-section">
+                      {rankedCandidates.length ? (
+                        <div className="substitute-rank-list" aria-label="대근 가능 후보 순위">
+                          {rankedCandidates.map((candidate) => (
+                            <div className={`substitute-rank rank-${candidate.priority}`} key={candidate.employeeId}>
+                              <strong>{candidate.priority}순위</strong>
+                              <span><b>{candidate.employeeName}</b>{candidate.role ? ` · ${candidate.role}` : ""}</span>
+                              <small>필수 {request.start}–{request.end}{candidate.reference ? ` · EX ${candidate.reference.start}–${candidate.reference.end}` : ""}</small>
+                            </div>
+                          ))}
+                        </div>
+                      ) : <p className="substitute-pending">아직 대근 가능 후보가 없습니다.</p>}
+                      {rankedCandidates.length < 2 ? (
+                        <SubstituteAcceptForm requestId={request.id} candidates={candidateOptions} connected={snapshot.databaseConnected} nextPriority={(rankedCandidates.length + 1) as 1 | 2} />
+                      ) : <p className="substitute-candidate-full"><Check size={17} /> 1·2순위 후보 등록이 완료되었습니다.</p>}
+                    </div>
                   ) : <p className="substitute-pending">대근 공석을 준비하고 있습니다.</p>}
 
                   <form action={cancelLeave} className="cancel-leave-form">

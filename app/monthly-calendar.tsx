@@ -5,6 +5,12 @@ import Link from "next/link";
 import { CalendarEntryActions } from "@/app/calendar-entry-actions";
 import type { MonthlyLeave, MonthlyUnavailability } from "@/lib/domain";
 
+function substituteLabel(leave: MonthlyLeave) {
+  if (!leave.substituteRequired) return "대근 불필요";
+  if (!leave.substituteCandidates.length) return "대근 후보 미정";
+  return leave.substituteCandidates.map((candidate) => `${candidate.priority}순위 ${candidate.employeeName}`).join(" · ");
+}
+
 export function MonthlyCalendar({ month, selectedDate, leaves, unavailabilities = [], expanded = false, mode = "board" }: { month: string; selectedDate?: string; leaves: MonthlyLeave[]; unavailabilities?: MonthlyUnavailability[]; expanded?: boolean; mode?: "board" | "inline" }) {
   const monthDate = parseISO(`${month}-01`);
   const days = eachDayOfInterval({
@@ -70,15 +76,16 @@ export function MonthlyCalendar({ month, selectedDate, leaves, unavailabilities 
               ><time dateTime={dayKey}>{format(day, "d")}</time></Link>
               <div className="calendar-day-content">
                 <div className="calendar-leaves">
-                  {dayLeaves.slice(0, expanded ? dayLeaves.length : 3).map((leave) => (
-                    <CalendarEntryActions
+                  {dayLeaves.slice(0, expanded ? dayLeaves.length : 3).map((leave) => {
+                    const coverage = substituteLabel(leave);
+                    return <CalendarEntryActions
                       className="leave-bar"
-                      title={`${leave.employeeName} · ${leave.part} 반차 · ${leave.substituteRequired ? `대근 ${leave.substituteName ?? "미정"}` : "대근 불필요"}`}
-                      text={`${leave.employeeName} · ${leave.part} 반차 · ${leave.substituteRequired ? `대근 ${leave.substituteName ?? "미정"}` : "대근 불필요"}`}
+                      title={`${leave.employeeName} · ${leave.part} 반차 · ${coverage}`}
+                      text={`${leave.employeeName} · ${leave.part} 반차 · ${coverage}`}
                       entry={{ type: "leave", id: leave.id, employeeId: leave.employeeId, employeeName: leave.employeeName, leaveDate: leave.leaveDate, part: leave.part, note: leave.note }}
                       key={leave.id}
-                    />
-                  ))}
+                    />;
+                  })}
                   {!expanded && dayLeaves.length > 3 ? <small>+{dayLeaves.length - 3}명</small> : null}
                 </div>
                 <div className="calendar-unavailability-bars">

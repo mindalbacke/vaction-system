@@ -28,7 +28,7 @@ export function createDemoSnapshot(date: string): DashboardSnapshot {
     leaves,
     substitutes: [{
       id: "s1", leaveId: "l1", requesterId: "e2", requesterName: "박서연",
-      part: "후반", start: "13:30", end: "17:20", newsNames: ["2시 뉴스외전", "5시 뉴스와 경제"], status: "대근자 미지정",
+      part: "후반", start: "13:30", end: "17:20", candidates: [], newsNames: ["2시 뉴스외전", "5시 뉴스와 경제"], status: "대근자 미지정",
     }],
     unavailabilities: [],
     databaseConnected: false,

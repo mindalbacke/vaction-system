@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { neon } from "@neondatabase/serverless";
 
-const migrationFiles = [
+const allMigrationFiles = [
   "db/001_schema.sql",
   "db/002_seed.sql",
   "db/003_auth_and_management.sql",
@@ -12,7 +12,16 @@ const migrationFiles = [
   "db/008_audio_rotation_and_news_coverage.sql",
   "db/009_leave_pin_and_substitute_rules.sql",
   "db/010_relay_leave_without_substitute.sql",
+  "db/011_substitute_candidates.sql",
+  "db/012_schedule_employee_colors.sql",
+  "db/013_audio_rotation_month_exclusions.sql",
 ];
+
+const requestedFiles = process.argv.slice(2);
+const migrationFiles = requestedFiles.length ? requestedFiles : allMigrationFiles;
+for (const file of migrationFiles) {
+  if (!allMigrationFiles.includes(file)) throw new Error(`알 수 없는 마이그레이션 파일입니다: ${file}`);
+}
 
 function splitSql(input) {
   const statements = [];

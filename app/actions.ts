@@ -198,62 +198,92 @@ export async function createLeave(_previousState: LeaveActionState, formData: Fo
   }
 }
 
-export async function acceptSubstitute(formData: FormData): Promise<void> {
-  const input = z.object({
-    requestId: z.string().uuid(),
-    employeeId: z.string().uuid(),
-  }).parse({ requestId: formData.get("requestId"), employeeId: formData.get("employeeId") });
-  const sql = requireDatabase();
-  const result = await sql`
-    WITH target AS (
-      SELECT * FROM substitute_requests
-      WHERE id = ${input.requestId}::uuid
-        AND substitute_employee_id IS NULL
-        AND status IN ('대근자 미지정', '대근 요청 중', '대근 조율 중')
-      FOR UPDATE
-    ), candidate AS (
-      SELECT e.id FROM employees e, target
-      WHERE e.id = ${input.employeeId}::uuid
-        AND e.active = true
-        AND (
-          e.substitute_eligible = true
-          OR (
-            e.role = '서무'
-            AND (target.start_datetime AT TIME ZONE 'Asia/Seoul')::date = (target.end_datetime AT TIME ZONE 'Asia/Seoul')::date
-            AND (target.end_datetime AT TIME ZONE 'Asia/Seoul')::time <= TIME '13:00'
+export type SubstituteAcceptActionState = { status: "idle" | "success" | "error"; message: string };
+
+export async function acceptSubstitute(_previousState: SubstituteAcceptActionState, formData: FormData): Promise<SubstituteAcceptActionState> {
+  try {
+    const input = z.object({
+      requestId: z.string().uuid(),
+      employeeId: z.string().uuid(),
+    }).parse({ requestId: formData.get("requestId"), employeeId: formData.get("employeeId") });
+    const result = await requireDatabase()`
+      WITH target AS (
+        SELECT request.*
+        FROM substitute_requests request
+        JOIN leave_requests leave ON leave.id = request.leave_request_id AND leave.cancelled = false
+        WHERE request.id = ${input.requestId}::uuid AND request.status <> '반차 취소'
+      ), eligible AS (
+        SELECT employee.id, target.id AS request_id
+        FROM employees employee, target
+        WHERE employee.id = ${input.employeeId}::uuid
+          AND employee.active = true
+          AND (
+            employee.substitute_eligible = true
+            OR (
+              employee.role = '서무'
+              AND (target.start_datetime AT TIME ZONE 'Asia/Seoul')::date = (target.end_datetime AT TIME ZONE 'Asia/Seoul')::date
+              AND (target.end_datetime AT TIME ZONE 'Asia/Seoul')::time <= TIME '13:00'
+            )
           )
-        )
-        AND e.id <> target.requester_id
-        AND NOT EXISTS (
-          SELECT 1 FROM leave_requests lr
-          WHERE lr.employee_id = e.id AND lr.cancelled = false
-            AND lr.start_datetime < target.end_datetime AND lr.end_datetime > target.start_datetime
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM substitute_requests occupied
-          WHERE occupied.substitute_employee_id = e.id AND occupied.status = '대근 확정'
-            AND occupied.start_datetime < target.end_datetime AND occupied.end_datetime > target.start_datetime
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM substitute_unavailability unavailable
-          WHERE unavailable.employee_id = e.id
-            AND unavailable.start_datetime < target.end_datetime
-            AND unavailable.end_datetime > target.start_datetime
-        )
-    ), changed AS (
-      UPDATE substitute_requests request
-      SET substitute_employee_id = candidate.id, status = '대근 확정',
-        responded_at = now(), updated_at = now()
-      FROM target, candidate
-      WHERE request.id = target.id
-      RETURNING request.*
-    )
-    INSERT INTO audit_logs (user_id, action_type, target_table, target_id, after_data)
-    SELECT NULL::uuid, '대근 자동 확정', 'substitute_requests', id, to_jsonb(changed) FROM changed
-    RETURNING target_id
-  `;
-  if (!result.length) throw new Error("이미 대근자가 정해졌거나 해당 시간에 대근할 수 없습니다.");
-  revalidatePath("/");
+          AND employee.id <> target.requester_id
+          AND NOT EXISTS (
+            SELECT 1 FROM substitute_candidates duplicate
+            WHERE duplicate.substitute_request_id = target.id AND duplicate.employee_id = employee.id
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM leave_requests leave
+            WHERE leave.employee_id = employee.id AND leave.cancelled = false
+              AND leave.start_datetime < target.end_datetime AND leave.end_datetime > target.start_datetime
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM substitute_candidates occupied_candidate
+            JOIN substitute_requests occupied ON occupied.id = occupied_candidate.substitute_request_id
+            JOIN leave_requests occupied_leave ON occupied_leave.id = occupied.leave_request_id AND occupied_leave.cancelled = false
+            WHERE occupied_candidate.employee_id = employee.id
+              AND occupied.id <> target.id
+              AND occupied.start_datetime < target.end_datetime AND occupied.end_datetime > target.start_datetime
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM substitute_unavailability unavailable
+            WHERE unavailable.employee_id = employee.id
+              AND unavailable.start_datetime < target.end_datetime
+              AND unavailable.end_datetime > target.start_datetime
+          )
+      ), reserved AS (
+        UPDATE substitute_requests request
+        SET candidate_count = request.candidate_count + 1, updated_at = now()
+        FROM eligible
+        WHERE request.id = eligible.request_id AND request.candidate_count < 2
+        RETURNING request.id AS request_id, eligible.id AS employee_id, request.candidate_count AS priority
+      ), inserted AS (
+        INSERT INTO substitute_candidates (substitute_request_id, employee_id, priority)
+        SELECT request_id, employee_id, priority FROM reserved
+        RETURNING *
+      ), changed AS (
+        UPDATE substitute_requests request SET
+          substitute_employee_id = CASE WHEN inserted.priority = 1 THEN inserted.employee_id ELSE request.substitute_employee_id END,
+          status = CASE WHEN inserted.priority = 2 THEN '대근 후보 등록 완료' ELSE '대근 후보 모집 중' END,
+          responded_at = CASE WHEN inserted.priority = 1 THEN now() ELSE request.responded_at END,
+          updated_at = now()
+        FROM inserted WHERE request.id = inserted.substitute_request_id
+        RETURNING request.*
+      ), audit AS (
+        INSERT INTO audit_logs (user_id, action_type, target_table, target_id, after_data)
+        SELECT NULL::uuid, '대근 후보 ' || inserted.priority || '순위 등록', 'substitute_candidates', inserted.id, to_jsonb(inserted)
+        FROM inserted
+      )
+      SELECT priority::int FROM inserted
+    `;
+    if (!result.length) return { status: "error", message: "후보가 이미 2명이거나, 중복 지원 또는 해당 시간의 근무·반차·대근 불가 일정 때문에 등록할 수 없습니다." };
+    const priority = Number((result[0] as Record<string, unknown>).priority);
+    revalidatePath("/");
+    revalidatePath("/board");
+    return { status: "success", message: `${priority}순위 대근 가능 후보로 등록했습니다.` };
+  } catch (error) {
+    if (error instanceof z.ZodError) return { status: "error", message: "대근 요청과 지원자를 다시 확인해 주세요." };
+    console.error("Substitute candidate registration failed", error);
+    return { status: "error", message: "대근 가능 후보를 등록하지 못했습니다. 잠시 후 다시 시도해 주세요." };
+  }
 }
 
 export type UnavailabilityActionState = { status: "idle" | "success" | "error"; message: string };
@@ -335,6 +365,12 @@ export async function updateCalendarLeave(_previousState: CalendarEditActionStat
             AND schedule.actual_start_datetime - make_interval(mins => schedule.preparation_minutes) < changed.end_datetime
             AND schedule.actual_end_datetime + make_interval(mins => schedule.cleanup_minutes) > changed.start_datetime
         ) news ON true
+      ), cleared_candidates AS (
+        DELETE FROM substitute_candidates candidate
+        USING coverage
+        WHERE candidate.substitute_request_id = coverage.id
+          AND (coverage.old_leave_date <> coverage.leave_date OR coverage.old_leave_type <> coverage.leave_type)
+        RETURNING candidate.id
       ), updated_request AS (
         UPDATE substitute_requests request SET
           start_datetime = coverage.coverage_start,
@@ -344,6 +380,7 @@ export async function updateCalendarLeave(_previousState: CalendarEditActionStat
             WHEN coverage.old_leave_date <> coverage.leave_date OR coverage.old_leave_type <> coverage.leave_type THEN '대근자 미정'
             ELSE request.status END,
           responded_at = CASE WHEN coverage.old_leave_date <> coverage.leave_date OR coverage.old_leave_type <> coverage.leave_type THEN NULL ELSE request.responded_at END,
+          candidate_count = CASE WHEN coverage.old_leave_date <> coverage.leave_date OR coverage.old_leave_type <> coverage.leave_type THEN 0 ELSE request.candidate_count END,
           updated_at = now()
         FROM coverage WHERE request.leave_request_id = coverage.id
         RETURNING request.id
