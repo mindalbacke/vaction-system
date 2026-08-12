@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>반차관리 휴가 도우미</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="brand">
+    <img src="mole-icon.png" alt="">
+    <div><strong>반차관리 휴가 도우미</strong><span>인사정보는 이 PC에서만 확인합니다.</span></div>
+  </header>
+
+  <main>
+    <p id="notice" class="notice" role="status">연결 상태를 확인하는 중입니다.</p>
+
+    <section>
+      <h2>내 반차 연결</h2>
+      <label>직원
+        <select id="employee"><option value="">이름을 선택하세요</option></select>
+      </label>
+      <div class="inline">
+        <label>개인 PIN
+          <input id="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="숫자 4자리" autocomplete="off">
+        </label>
+        <button id="syncHalfDays" class="primary">반차 새로고침</button>
+      </div>
+      <small>PIN은 현재 Chrome 실행 중에만 기억하며 디스크에 저장하지 않습니다.</small>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>인사정보 연결</h2><button id="openHr" class="quiet">인사정보 열기</button></div>
+      <details>
+        <summary>로그인 화면 입력 보조</summary>
+        <label>인사정보 아이디<input id="hrUsername" autocomplete="off"></label>
+        <label>인사정보 비밀번호<input id="hrPassword" type="password" autocomplete="off"></label>
+        <button id="fillLogin">로그인칸 채우기</button>
+        <small>아이디와 비밀번호는 저장하거나 반차관리 서버로 보내지 않습니다. 로그인 버튼은 직접 누르세요.</small>
+      </details>
+      <button id="readHr" class="wide">현재 인사정보 화면에서 잔여량 확인</button>
+      <div class="balance-grid">
+        <article><span>공식 연차 잔여량</span><strong id="officialBalance">-</strong></article>
+        <article><span>미반영 반차</span><strong id="pendingBalance">-</strong></article>
+        <article class="accent"><span>실제 참고 가능량</span><strong id="availableBalance">-</strong></article>
+      </div>
+      <small id="hrSyncedAt">인사정보 휴가사용현황 화면에서 확인 버튼을 눌러 주세요.</small>
+    </section>
+
+    <section>
+      <h2>휴가 1일로 묶을 반차</h2>
+      <div id="halfDayList" class="list empty">반차 내역을 먼저 불러와 주세요.</div>
+      <button id="makePair" class="primary wide">선택한 반차 2건 묶기</button>
+      <small>신청일은 선택한 날짜 중 가장 빠른 날로 자동 지정됩니다.</small>
+    </section>
+
+    <section>
+      <h2>신청 준비 및 사용기록</h2>
+      <div id="applicationList" class="list empty">아직 묶은 반차가 없습니다.</div>
+    </section>
+
+    <details class="settings">
+      <summary>연결 설정</summary>
+      <label>반차관리 사이트 주소<input id="siteUrl" type="url"></label>
+      <button id="saveSettings">주소 저장</button>
+    </details>
+  </main>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
