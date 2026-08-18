@@ -53,3 +53,16 @@ export function getSelectableHalfDays(halfDays, applications) {
   );
   return halfDays.filter((item) => !reservedIds.has(item.id));
 }
+
+export function makeSiteSnapshot(settings, halfDays, applications, hrSnapshot) {
+  return {
+    employeeId: settings?.employeeId || "",
+    hrSnapshot: hrSnapshot || null,
+    pending: getPendingSummary(halfDays, applications),
+    applicationCounts: {
+      ready: applications.filter((item) => item.status === "ready" || item.status === "filled").length,
+      confirmed: applications.filter((item) => item.status === "confirmed").length,
+      needsReview: applications.filter((item) => item.status === "needs-review").length,
+    },
+  };
+}

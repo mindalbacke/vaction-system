@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getPendingSummary, makeApplication, reconcileApplications } from "./shared.js";
+import { getPendingSummary, makeApplication, makeSiteSnapshot, reconcileApplications } from "./shared.js";
 
 const halfDays = [
   { id: "aaaaaaaa-0000-0000-0000-000000000000", date: "2026-08-20", part: "후반" },
@@ -25,5 +25,21 @@ describe("휴가 1일 묶음", () => {
     const application = makeApplication(halfDays);
     const reconciled = reconcileApplications([application], halfDays, `신청 내역 ${application.marker}`);
     expect(reconciled[0].status).toBe("confirmed");
+  });
+
+  it("사이트에는 선택 직원의 로컬 잔여량과 신청 상태 요약만 전달한다", () => {
+    const ready = makeApplication(halfDays);
+    const confirmed = { ...ready, id: "confirmed", status: "confirmed" };
+    const snapshot = makeSiteSnapshot(
+      { employeeId: "employee-1", siteUrl: "https://example.com" },
+      halfDays,
+      [ready, confirmed],
+      { annualTotal: 10, annualUsed: 3, annualRemaining: 7, syncedAt: "2026-08-12T00:00:00.000Z" },
+    );
+    expect(snapshot.employeeId).toBe("employee-1");
+    expect(snapshot.pending).toEqual({ pendingCount: 0, pendingDays: 0 });
+    expect(snapshot.applicationCounts).toEqual({ ready: 1, confirmed: 1, needsReview: 0 });
+    expect(snapshot.hrSnapshot).toMatchObject({ annualTotal: 10, annualUsed: 3, annualRemaining: 7 });
+    expect(snapshot).not.toHaveProperty("siteUrl");
   });
 });

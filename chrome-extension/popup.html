@@ -13,7 +13,7 @@
   </header>
 
   <main>
-    <p id="notice" class="notice" role="status">연결 상태를 확인하는 중입니다.</p>
+    <div id="feedbackBubble" class="feedback-bubble" role="status" hidden></div>
 
     <section>
       <h2>내 반차 연결</h2>
@@ -31,16 +31,17 @@
 
     <section>
       <div class="section-head"><h2>인사정보 연결</h2><button id="openHr" class="quiet">인사정보 열기</button></div>
-      <details>
-        <summary>로그인 화면 입력 보조</summary>
+      <details open>
+        <summary>인사정보 로그인</summary>
         <label>인사정보 아이디<input id="hrUsername" autocomplete="off"></label>
         <label>인사정보 비밀번호<input id="hrPassword" type="password" autocomplete="off"></label>
-        <button id="fillLogin">로그인칸 채우기</button>
+        <button id="fillLogin" class="primary wide">인사정보 로그인 화면에 입력</button>
         <small>아이디와 비밀번호는 저장하거나 반차관리 서버로 보내지 않습니다. 로그인 버튼은 직접 누르세요.</small>
       </details>
-      <button id="readHr" class="wide">현재 인사정보 화면에서 잔여량 확인</button>
+      <button id="readHr" class="wide">사용·잔여 휴가 새로고침</button>
       <div class="balance-grid">
-        <article><span>공식 연차 잔여량</span><strong id="officialBalance">-</strong></article>
+        <article><span>공식 사용 휴가</span><strong id="officialUsed">-</strong></article>
+        <article><span>공식 잔여 휴가</span><strong id="officialBalance">-</strong></article>
         <article><span>미반영 반차</span><strong id="pendingBalance">-</strong></article>
         <article class="accent"><span>실제 참고 가능량</span><strong id="availableBalance">-</strong></article>
       </div>

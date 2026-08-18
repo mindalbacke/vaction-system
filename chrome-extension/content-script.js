@@ -1,5 +1,8 @@
 /* global chrome */
 (() => {
+  if (globalThis.__halfdayHelperContentScriptLoaded) return;
+  globalThis.__halfdayHelperContentScriptLoaded = true;
+
   const text = (element) => (element?.textContent || "").replace(/\s+/g, " ").trim();
 
   function setValue(element, value) {
@@ -24,27 +27,45 @@
   }
 
   function readBalance() {
+    let annualTotal = null;
+    let annualUsed = null;
     let annualRemaining = null;
     let substituteRemaining = null;
     const bodyText = text(document.body);
     const compactAnnual = bodyText.match(/연차휴가\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
-    if (compactAnnual) annualRemaining = Number(compactAnnual[1]);
+    if (compactAnnual) {
+      annualRemaining = Number(compactAnnual[1]);
+      annualTotal = Number(compactAnnual[2]);
+      annualUsed = Math.max(0, annualTotal - annualRemaining);
+    }
 
     for (const table of document.querySelectorAll("table")) {
       const rows = [...table.querySelectorAll("tr")];
       const header = rows.find((row) => text(row).includes("연차휴가") && text(row).includes("대휴"));
+      const base = rows.find((row) => /^기본(?:\s|$)/.test(text(row)));
+      const used = rows.find((row) => /^사용(?:\s|$)/.test(text(row)));
       const remain = rows.find((row) => /^잔여(?:\s|$)/.test(text(row)));
       if (!header || !remain) continue;
       const headers = [...header.querySelectorAll("th, td")].map(text);
+      const baseValues = base ? [...base.querySelectorAll("th, td")].map(text) : [];
+      const usedValues = used ? [...used.querySelectorAll("th, td")].map(text) : [];
       const values = [...remain.querySelectorAll("th, td")].map(text);
       const annualIndex = headers.findIndex((value) => value.includes("연차휴가"));
       const substituteIndex = headers.findIndex((value) => value.includes("대휴"));
+      if (annualIndex >= 0 && baseValues[annualIndex] !== undefined) annualTotal = Number(baseValues[annualIndex]);
+      if (annualIndex >= 0 && usedValues[annualIndex] !== undefined) annualUsed = Number(usedValues[annualIndex]);
       if (annualIndex >= 0 && values[annualIndex] !== undefined) annualRemaining = Number(values[annualIndex]);
       if (substituteIndex >= 0 && values[substituteIndex] !== undefined) substituteRemaining = Number(values[substituteIndex]);
     }
 
+    if (!Number.isFinite(annualUsed) && Number.isFinite(annualTotal) && Number.isFinite(annualRemaining)) {
+      annualUsed = Math.max(0, annualTotal - annualRemaining);
+    }
+
     return {
       found: annualRemaining !== null && Number.isFinite(annualRemaining),
+      annualTotal: Number.isFinite(annualTotal) ? annualTotal : null,
+      annualUsed: Number.isFinite(annualUsed) ? annualUsed : null,
       annualRemaining,
       substituteRemaining: Number.isFinite(substituteRemaining) ? substituteRemaining : null,
       historyText: bodyText,
@@ -53,16 +74,24 @@
   }
 
   function fillLogin({ username, password }) {
-    const passwordInput = document.querySelector('input[type="password"]');
+    const passwordInput = [...document.querySelectorAll('input[type="password"]')]
+      .find((input) => !input.disabled && input.offsetParent !== null);
     if (!passwordInput) return { found: false };
-    const inputs = [...document.querySelectorAll('input:not([type="hidden"]):not([type="password"])')];
-    const usernameInput = inputs.find((input) => /id|user|emp|sabun|login/i.test(`${input.name} ${input.id}`))
-      || inputs.filter((input) => input.type === "text").at(-1);
+    const formInputs = passwordInput.form
+      ? [...passwordInput.form.querySelectorAll('input:not([type="hidden"]):not([type="password"])')]
+      : [];
+    const pageInputs = [...document.querySelectorAll('input:not([type="hidden"]):not([type="password"])')];
+    const inputs = [...formInputs, ...pageInputs].filter((input, index, list) => (
+      list.indexOf(input) === index && !input.disabled && input.offsetParent !== null
+    ));
+    const usernameInput = inputs.find((input) => input.autocomplete === "username")
+      || inputs.find((input) => /user.?id|login.?id|employee|emp|sabun|사번|아이디|^id$/i.test(`${input.name} ${input.id} ${input.placeholder}`))
+      || inputs.find((input) => input.type === "text" || input.type === "email");
     if (!usernameInput) return { found: false };
     setValue(usernameInput, username);
     setValue(passwordInput, password);
     passwordInput.scrollIntoView({ behavior: "smooth", block: "center" });
-    return { found: true };
+    return { found: true, pageTitle: document.title, origin: window.location.origin };
   }
 
   function fillApplication({ applicationDate, reason }) {
@@ -98,7 +127,8 @@
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     try {
-      if (message.type === "READ_HR") sendResponse(readBalance());
+      if (message.type === "PING_HR_HELPER") sendResponse({ found: true, ready: true, url: window.location.href });
+      else if (message.type === "READ_HR") sendResponse(readBalance());
       else if (message.type === "FILL_LOGIN") sendResponse(fillLogin(message));
       else if (message.type === "FILL_APPLICATION") sendResponse(fillApplication(message.application));
     } catch (error) {
@@ -107,8 +137,10 @@
     return true;
   });
 
-  window.setTimeout(() => {
+  const publishSnapshot = () => {
     const snapshot = readBalance();
     if (snapshot.found) chrome.runtime.sendMessage({ type: "HR_SNAPSHOT", snapshot }).catch(() => {});
-  }, 1200);
+  };
+  window.setTimeout(publishSnapshot, 1200);
+  window.setTimeout(publishSnapshot, 3500);
 })();

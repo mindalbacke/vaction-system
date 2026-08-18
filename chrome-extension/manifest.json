@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "반차관리 휴가 도우미",
-  "version": "0.1.0",
+  "version": "0.3.3",
   "description": "반차 두 건을 휴가 1일로 계산하고 MBC 인사정보 휴가 신청 화면 입력을 돕습니다.",
-  "permissions": ["storage", "tabs", "webNavigation"],
+  "permissions": ["storage", "tabs", "webNavigation", "scripting"],
   "host_permissions": [
     "https://insa.mbc.co.kr/*",
+    "https://*.mbc.co.kr/*",
     "https://teum-half-day.halfday-ops.workers.dev/*",
     "http://localhost:*/*"
   ],
@@ -29,10 +30,20 @@
     "48": "mole-icon.png",
     "128": "mole-icon.png"
   },
-  "content_scripts": [{
-    "matches": ["https://insa.mbc.co.kr/*"],
-    "js": ["content-script.js"],
-    "all_frames": true,
-    "run_at": "document_idle"
-  }]
+  "content_scripts": [
+    {
+      "matches": ["https://insa.mbc.co.kr/*", "https://*.mbc.co.kr/*"],
+      "js": ["content-script.js"],
+      "all_frames": true,
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://teum-half-day.halfday-ops.workers.dev/*",
+        "http://localhost:*/*"
+      ],
+      "js": ["site-bridge.js"],
+      "run_at": "document_idle"
+    }
+  ]
 }

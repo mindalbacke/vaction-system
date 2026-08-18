@@ -374,20 +374,30 @@ html[data-theme="dark"] .form-feedback.error { color: var(--coral); }
 .unavailable-empty { margin: 0; padding: 15px; color: var(--muted); background: var(--soft-surface); border: 1px solid var(--line); border-radius: 10px; text-align: center; font-size: 14px; }
 
 .balance-card { margin-top: 20px; padding: 22px 24px; }
+.extension-helper-panel { display: grid; gap: 10px; margin-bottom: 14px; padding: 14px; background: var(--blue-soft); border: 1px solid color-mix(in srgb, var(--blue) 38%, var(--line)); border-radius: 11px; }
+.extension-helper-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.extension-helper-head > div { display: flex; flex-direction: column; }
+.extension-helper-head b { font-size: 16px; }
+.extension-helper-head span { color: var(--muted); font-size: 12px; }
+.balance-lock-panel .extension-helper-head button { background: var(--blue); }
+.extension-helper-notice { margin: 0; padding: 10px 11px; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }
+.extension-balance-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.extension-balance-summary > div { display: flex; flex-direction: column; padding: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; }
+.extension-balance-summary span { color: var(--muted); font-size: 12px; font-weight: 700; }
+.extension-balance-summary b { font-size: 17px; }
+.extension-application-summary { display: flex; flex-wrap: wrap; gap: 7px; }
+.extension-application-summary span { padding: 6px 9px; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; font-size: 12px; }
+.extension-application-summary b { color: var(--ink); }
 .balance-employee-select { max-width: 420px; display: grid; gap: 5px; color: var(--muted); font-size: 13px; font-weight: 800; }
 .balance-employee-select select, .balance-lock-panel input {
   width: 100%; min-width: 0; padding: 11px 12px; color: var(--ink); background: var(--input-bg); border: 1px solid var(--line); border-radius: 10px; font-size: 16px;
 }
 .balance-lock-panel { max-width: 680px; margin-top: 13px; padding: 16px; background: var(--soft-surface); border: 1px solid var(--line); border-radius: 13px; }
-.balance-unlock-form, .balance-edit-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px; align-items: end; }
-.balance-unlock-form label, .balance-edit-form label, .pin-change label { display: grid; gap: 5px; color: var(--muted); font-size: 13px; font-weight: 800; }
+.balance-unlock-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px; align-items: end; }
+.balance-unlock-form label, .pin-change label { display: grid; gap: 5px; color: var(--muted); font-size: 13px; font-weight: 800; }
 .balance-lock-panel button { padding: 12px 15px; color: white; background: var(--green); border: 0; border-radius: 10px; font-weight: 800; white-space: nowrap; }
 .balance-lock-panel > .form-feedback, .unlocked-balance > .form-feedback { margin-top: 10px; }
 .unlocked-balance { display: grid; gap: 13px; margin-top: 15px; }
-.balance-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.balance-summary > div { display: flex; flex-direction: column; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
-.balance-summary span { color: var(--muted); font-size: 12px; font-weight: 700; }
-.balance-summary b { font-size: 21px; }
 .pin-change { padding-top: 2px; }
 .pin-change summary { color: var(--blue); cursor: pointer; font-size: 14px; font-weight: 800; }
 .pin-change form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: end; margin-top: 10px; }
@@ -513,8 +523,10 @@ html[data-theme="dark"] .form-feedback.error { color: var(--coral); }
   .unavailable-form { grid-template-columns: 1fr; }
   .unavailable-reason { grid-column: auto; }
   .balance-list form { grid-template-columns: minmax(0, 1fr) 105px auto; }
-  .balance-unlock-form, .balance-edit-form, .pin-change form { grid-template-columns: 1fr; }
-  .balance-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .balance-unlock-form, .pin-change form { grid-template-columns: 1fr; }
+  .extension-helper-head { align-items: stretch; flex-direction: column; }
+  .extension-helper-head button { width: 100%; }
+  .extension-balance-summary { grid-template-columns: repeat(2, 1fr); }
   .schedule-calendar-card { overflow-x: auto; padding: 15px; }
   .schedule-calendar-card .calendar-head, .schedule-calendar-card .schedule-legend, .schedule-calendar-card .calendar-weekdays, .schedule-calendar-card .calendar-grid { min-width: 820px; }
   .schedule-employee-options { grid-template-columns: 1fr; }
