@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "반차관리 휴가 도우미",
-  "version": "0.3.3",
+  "version": "0.4.2",
   "description": "반차 두 건을 휴가 1일로 계산하고 MBC 인사정보 휴가 신청 화면 입력을 돕습니다.",
   "permissions": ["storage", "tabs", "webNavigation", "scripting"],
   "host_permissions": [

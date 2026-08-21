@@ -313,7 +313,12 @@ html[data-theme="dark"] .form-feedback.error { color: var(--coral); }
 
 .leave-feed { display: grid; gap: 12px; }
 .leave-feed-item { position: relative; padding: 17px; background: var(--soft-surface); border: 1px solid var(--line); border-radius: 14px; }
-.leave-person { display: flex; align-items: center; gap: 11px; padding-right: 80px; }
+.leave-date-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -2px 0 13px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.leave-date-row time { color: var(--text); font-size: 14px; font-weight: 800; }
+.leave-date-row a { color: var(--blue); font-size: 13px; font-weight: 800; text-decoration: none; }
+.leave-date-row a:hover { text-decoration: underline; }
+.leave-date-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }
+.leave-person { display: flex; align-items: center; gap: 11px; }
 .leave-person > div { display: flex; flex-direction: column; min-width: 0; }
 .leave-person b { font-size: 17px; }
 .leave-person span { color: var(--muted); font-size: 14px; }
@@ -341,7 +346,7 @@ html[data-theme="dark"] .form-feedback.error { color: var(--coral); }
 .substitute-feedback { grid-column: 1 / -1; }
 .substitute-pending { margin: 12px 0 0; color: var(--muted); font-size: 14px; }
 .substitute-not-required { margin: 12px 0 0; padding: 10px 12px; color: var(--muted); background: var(--background); border: 1px solid var(--line); border-radius: 9px; font-size: 14px; font-weight: 700; }
-.cancel-leave-form { position: absolute; top: 14px; right: 14px; }
+.cancel-leave-form { margin: 0; }
 .cancel-leave-form button { padding: 6px 8px; color: var(--muted); background: transparent; border: 0; font-size: 13px; }
 .simple-empty { min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: var(--muted); text-align: center; }
 .simple-empty b { color: var(--ink); font-size: 17px; }
@@ -381,13 +386,28 @@ html[data-theme="dark"] .form-feedback.error { color: var(--coral); }
 .extension-helper-head span { color: var(--muted); font-size: 12px; }
 .balance-lock-panel .extension-helper-head button { background: var(--blue); }
 .extension-helper-notice { margin: 0; padding: 10px 11px; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }
-.extension-balance-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
-.extension-balance-summary > div { display: flex; flex-direction: column; padding: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; }
-.extension-balance-summary span { color: var(--muted); font-size: 12px; font-weight: 700; }
-.extension-balance-summary b { font-size: 17px; }
+.extension-leave-types { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.extension-leave-types > div, .extension-balance-summary > div { display: flex; flex-direction: column; padding: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; }
+.extension-leave-types span, .extension-balance-summary span { color: var(--muted); font-size: 12px; font-weight: 700; }
+.extension-leave-types b, .extension-balance-summary b { font-size: 17px; }
+.extension-leave-types small { margin-top: 2px; color: var(--muted); font-size: 11px; }
+.extension-balance-summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
 .extension-application-summary { display: flex; flex-wrap: wrap; gap: 7px; }
 .extension-application-summary span { padding: 6px 9px; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; font-size: 12px; }
 .extension-application-summary b { color: var(--ink); }
+.extension-submit-list { display: grid; gap: 7px; padding-top: 3px; }
+.extension-submit-list > b { font-size: 14px; }
+.extension-submit-list article { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 9px; padding: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; }
+.extension-submit-main { display: flex; flex-direction: column; min-width: 0; }
+.extension-submit-list strong { font-size: 14px; }
+.extension-submit-list span { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.extension-submit-main select { min-height: 34px; margin-top: 6px; padding: 6px 8px; color: var(--ink); background: var(--input-bg); border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }
+.extension-submit-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.extension-submit-list button { padding: 8px 10px; font-size: 12px; }
+.extension-submit-list button.danger { color: #9b3c31; background: var(--coral-soft); }
+.extension-submit-list > p, .extension-submit-feedback { margin: 0; padding: 9px 10px; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; font-size: 12px; }
+.extension-submit-feedback.success { color: var(--green); background: var(--green-soft); }
+.extension-submit-feedback.error { color: #9b3c31; background: var(--coral-soft); }
 .balance-employee-select { max-width: 420px; display: grid; gap: 5px; color: var(--muted); font-size: 13px; font-weight: 800; }
 .balance-employee-select select, .balance-lock-panel input {
   width: 100%; min-width: 0; padding: 11px 12px; color: var(--ink); background: var(--input-bg); border: 1px solid var(--line); border-radius: 10px; font-size: 16px;
@@ -459,9 +479,11 @@ html[data-theme="dark"] .form-feedback.error { color: var(--coral); }
 .active-label { color: var(--green); background: var(--green-soft); }
 .inactive-label { color: var(--muted); background: var(--background); }
 .row-editor summary { color: var(--blue); cursor: pointer; font-size: 14px; font-weight: 700; }
-.row-editor form { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(110px, 1fr) auto auto; gap: 6px; position: absolute; left: 20px; right: 20px; z-index: 2; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+.row-editor form { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(110px, 1fr) auto auto auto; gap: 6px; position: absolute; left: 20px; right: 20px; z-index: 2; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
 .row-editor button { padding: 9px 11px; font-size: 14px; }
 .row-editor .ghost { color: var(--muted); background: var(--background); }
+.row-editor .danger { color: #a33b31; background: var(--coral-soft); border-color: #e0a097; }
+.employee-delete-actions { display: flex; gap: 5px; }
 .employee-feedback { margin: 0 20px 10px; padding: 10px 12px; border-radius: 9px; font-size: 14px; }
 .employee-feedback.success { color: var(--green); background: var(--green-soft); }
 .employee-feedback.error { color: #9b3c31; background: var(--coral-soft); }
@@ -527,6 +549,10 @@ html[data-theme="dark"] .form-feedback.error { color: var(--coral); }
   .extension-helper-head { align-items: stretch; flex-direction: column; }
   .extension-helper-head button { width: 100%; }
   .extension-balance-summary { grid-template-columns: repeat(2, 1fr); }
+  .extension-leave-types { grid-template-columns: 1fr; }
+  .extension-submit-list article { grid-template-columns: 1fr; }
+  .extension-submit-actions { justify-content: stretch; }
+  .extension-submit-actions button { flex: 1; }
   .schedule-calendar-card { overflow-x: auto; padding: 15px; }
   .schedule-calendar-card .calendar-head, .schedule-calendar-card .schedule-legend, .schedule-calendar-card .calendar-weekdays, .schedule-calendar-card .calendar-grid { min-width: 820px; }
   .schedule-employee-options { grid-template-columns: 1fr; }
@@ -545,7 +571,7 @@ html[data-theme="dark"] .form-feedback.error { color: var(--coral); }
   .schedule-shift-toggles .custom { grid-column: 1 / -1; }
   .schedule-period-form > button { width: 100%; }
   .rotation-person { grid-column: auto; }
-  .leave-person { padding-right: 0; }
-  .cancel-leave-form { position: static; margin-top: 4px; text-align: right; }
+  .leave-date-row { align-items: flex-start; flex-direction: column; }
+  .leave-date-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; }
   .simple-roster article { flex-wrap: wrap; }
 }

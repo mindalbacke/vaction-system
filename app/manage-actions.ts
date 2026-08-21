@@ -20,6 +20,10 @@ export type EmployeeMutationResult =
   | { ok: true; employee: ManagedEmployee }
   | { ok: false; error: string };
 
+export type EmployeeDeletionResult =
+  | { ok: true; id: string; name: string }
+  | { ok: false; error: string };
+
 function employeeMutationError(error: unknown): EmployeeMutationResult {
   console.error("Employee mutation failed", error);
   return { ok: false, error: "저장하지 못했습니다. 입력값과 연결 상태를 확인해 주세요." };
@@ -336,6 +340,36 @@ export async function toggleEmployeeActive(formData: FormData) {
     return { ok: true, employee: { id: String(row.id), name: String(row.name), role: row.role as ManagedEmployee["role"], active: Boolean(row.active) } } satisfies EmployeeMutationResult;
   } catch (error) {
     return employeeMutationError(error);
+  }
+}
+
+export async function deleteEmployee(formData: FormData): Promise<EmployeeDeletionResult> {
+  try {
+    const id = z.string().uuid().parse(formData.get("id"));
+    const rows = await ensureDb()`
+      WITH before_row AS (
+        SELECT * FROM employees WHERE id = ${id}::uuid AND deleted_at IS NULL
+      ), changed AS (
+        UPDATE employees employee
+        SET active = false, deleted_at = now(), updated_at = now()
+        FROM before_row
+        WHERE employee.id = before_row.id
+        RETURNING employee.id, employee.name, to_jsonb(before_row) AS before_data, to_jsonb(employee) AS after_data
+      ), audit AS (
+        INSERT INTO audit_logs (user_id, action_type, target_table, target_id, before_data, after_data)
+        SELECT NULL::uuid, '직원 삭제', 'employees', id, before_data, after_data FROM changed
+      )
+      SELECT id::text, name FROM changed
+    `;
+    const row = rows[0] as Record<string, unknown> | undefined;
+    if (!row) return { ok: false, error: "이미 삭제되었거나 해당 직원을 찾을 수 없습니다." };
+    revalidatePath("/");
+    revalidatePath("/manage");
+    revalidatePath("/schedule");
+    return { ok: true, id: String(row.id), name: String(row.name) };
+  } catch (error) {
+    console.error("Employee deletion failed", error);
+    return { ok: false, error: "직원을 삭제하지 못했습니다. 연결 상태를 확인해 주세요." };
   }
 }
 

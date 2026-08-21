@@ -3,8 +3,10 @@
 import { type FormEvent, useState } from "react";
 import {
   createEmployee,
+  deleteEmployee,
   toggleEmployeeActive,
   updateEmployee,
+  type EmployeeDeletionResult,
   type EmployeeMutationResult,
   type ManagedEmployee,
 } from "@/app/manage-actions";
@@ -18,9 +20,15 @@ function failedResult(error: unknown): EmployeeMutationResult {
   return { ok: false, error: "네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요." };
 }
 
+function failedDeletionResult(error: unknown): EmployeeDeletionResult {
+  console.error("Employee deletion request failed", error);
+  return { ok: false, error: "네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요." };
+}
+
 export function EmployeeManager({ initialEmployees, connected }: { initialEmployees: ManagedEmployee[]; connected: boolean }) {
   const [employees, setEmployees] = useState(initialEmployees);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(null);
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
@@ -114,6 +122,29 @@ export function EmployeeManager({ initialEmployees, connected }: { initialEmploy
     setBusyId(null);
   }
 
+  async function handleDelete(employee: ManagedEmployee) {
+    const formData = new FormData();
+    formData.set("id", employee.id);
+    setFeedback(null);
+    setBusyId(employee.id);
+
+    let result: EmployeeDeletionResult;
+    try {
+      result = await deleteEmployee(formData);
+    } catch (error) {
+      result = failedDeletionResult(error);
+    }
+
+    if (result.ok) {
+      setEmployees((current) => current.filter((item) => item.id !== result.id));
+      setFeedback({ tone: "success", text: `${result.name}님을 직원 목록에서 삭제했습니다.` });
+    } else {
+      setFeedback({ tone: "error", text: result.error });
+    }
+    setDeleteConfirmId(null);
+    setBusyId(null);
+  }
+
   return (
     <div className="manage-layout narrow">
       <section className="manage-card">
@@ -146,6 +177,14 @@ export function EmployeeManager({ initialEmployees, connected }: { initialEmploy
                       <select name="role" defaultValue={employee.role} aria-label={`${employee.name} 담당 업무`}>{roles.map((role) => <option key={role}>{role}</option>)}</select>
                       <button disabled={!connected || pending}>{pending ? "저장 중…" : "저장"}</button>
                       <button type="button" className="ghost" disabled={!connected || pending} onClick={() => handleToggle(employee)}>{employee.active ? "비활성" : "활성"}</button>
+                      {deleteConfirmId === employee.id ? (
+                        <span className="employee-delete-actions">
+                          <button type="button" className="danger" disabled={!connected || pending} onClick={() => handleDelete(employee)}>정말 삭제</button>
+                          <button type="button" className="ghost" disabled={pending} onClick={() => setDeleteConfirmId(null)}>취소</button>
+                        </span>
+                      ) : (
+                        <button type="button" className="danger" disabled={!connected || pending} onClick={() => setDeleteConfirmId(employee.id)}>삭제</button>
+                      )}
                     </form>
                   </details>
                 )}

@@ -13,7 +13,7 @@ import { SubstituteAcceptForm } from "@/app/substitute-accept-form";
 import { SubstituteUnavailabilityForm } from "@/app/substitute-unavailability-form";
 import { ThemeToggle } from "@/app/theme-toggle";
 import type { DashboardSnapshot, MonthlyLeave, MonthlyUnavailability, SubstituteUnavailability } from "@/lib/domain";
-import { getDashboardSnapshot, getMonthlyLeaves, getMonthlyUnavailabilities, getSubstituteUnavailabilityList } from "@/lib/repository";
+import { getDashboardSnapshot, getMonthlyLeaves, getMonthlyUnavailabilities, getRegisteredLeaves, getSubstituteUnavailabilityList } from "@/lib/repository";
 import { getReferenceSubstituteShift, overlaps } from "@/lib/scheduling";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +27,7 @@ function dateHref(date: string, amount: number) {
   return `/?date=${format(addDays(parseISO(date), amount), "yyyy-MM-dd")}`;
 }
 
-function Dashboard({ snapshot, calendarMonth, monthlyLeaves, monthlyUnavailabilities, unavailabilityList }: { snapshot: DashboardSnapshot; calendarMonth?: string; monthlyLeaves: MonthlyLeave[]; monthlyUnavailabilities: MonthlyUnavailability[]; unavailabilityList: SubstituteUnavailability[] }) {
+function Dashboard({ snapshot, registeredLeaves, calendarMonth, monthlyLeaves, monthlyUnavailabilities, unavailabilityList }: { snapshot: DashboardSnapshot; registeredLeaves: MonthlyLeave[]; calendarMonth?: string; monthlyLeaves: MonthlyLeave[]; monthlyUnavailabilities: MonthlyUnavailability[]; unavailabilityList: SubstituteUnavailability[] }) {
   const { date, employees, leaves, substitutes, unavailabilities } = snapshot;
   const substituteByLeave = new Map(substitutes.map((request) => [request.leaveId, request]));
   const employeeById = new Map(employees.map((employee) => [employee.id, employee]));
@@ -75,16 +75,29 @@ function Dashboard({ snapshot, calendarMonth, monthlyLeaves, monthlyUnavailabili
         <section className="simple-card leave-board" aria-labelledby="leave-board-title">
           <div className="simple-section-title">
             <span className="title-icon blue"><Check size={24} /></span>
-            <div><h2 id="leave-board-title">반차·대근 현황</h2><p>{leaves.length ? `${leaves.length}명이 반차를 사용합니다.` : "오늘 등록된 반차가 없습니다."}</p></div>
+            <div><h2 id="leave-board-title">반차·대근 현황</h2><p>{registeredLeaves.length ? `등록된 반차 ${registeredLeaves.length}건을 날짜별로 보여줍니다.` : "등록된 반차가 없습니다."}</p></div>
           </div>
 
           <div className="leave-feed">
-            {leaves.map((leave) => {
-              const request = substituteByLeave.get(leave.id);
-              const leaveEmployee = employeeById.get(leave.employeeId);
-              const substituteRequired = leaveEmployee?.role !== "서무" && leaveEmployee?.role !== "중계보조";
+            {registeredLeaves.map((leaveSummary) => {
+              const leave = leaves.find((item) => item.id === leaveSummary.id);
+              const isSelectedDate = leaveSummary.leaveDate === date && leave !== undefined;
+              const displayLeave = leave ?? {
+                id: leaveSummary.id,
+                employeeId: leaveSummary.employeeId,
+                employeeName: leaveSummary.employeeName,
+                leaveDate: leaveSummary.leaveDate,
+                part: leaveSummary.part,
+                start: "",
+                end: "",
+                status: "",
+                note: leaveSummary.note,
+              };
+              const request = isSelectedDate ? substituteByLeave.get(displayLeave.id) : undefined;
+              const leaveEmployee = employeeById.get(displayLeave.employeeId);
+              const substituteRequired = leaveSummary.substituteRequired;
               const eligibleEmployees = employees.filter((employee) =>
-                employee.id !== leave.employeeId
+                employee.id !== displayLeave.employeeId
                 && !request?.candidates.some((candidate) => candidate.employeeId === employee.id)
                 && (employee.substituteEligible || (employee.role === "서무" && request !== undefined && request.end <= "13:00"))
                 && !employee.leavePart
@@ -110,10 +123,20 @@ function Dashboard({ snapshot, calendarMonth, monthlyLeaves, monthlyUnavailabili
                 return { ...candidate, role: employee?.role, reference };
               }) ?? [];
               return (
-                <article className="leave-feed-item" key={leave.id}>
+                <article className="leave-feed-item" key={displayLeave.id}>
+                  <div className="leave-date-row">
+                    <time dateTime={displayLeave.leaveDate}>{format(parseISO(displayLeave.leaveDate), "yyyy년 M월 d일 EEEE", { locale: ko })}</time>
+                    <div className="leave-date-actions">
+                      {!isSelectedDate && <Link href={{ pathname: "/", query: { date: displayLeave.leaveDate } }}>이 날짜 상세보기</Link>}
+                      <form action={cancelLeave} className="cancel-leave-form">
+                        <input type="hidden" name="id" value={displayLeave.id} />
+                        <button disabled={!snapshot.databaseConnected}>반차 취소</button>
+                      </form>
+                    </div>
+                  </div>
                   <div className="leave-person">
-                    <span className="simple-avatar">{leave.employeeName.slice(-2)}</span>
-                    <div><b>{leave.employeeName}님이 {leave.part} 반차를 사용합니다.</b><span>{leave.start}–{leave.end}{leave.note ? ` · ${leave.note}` : ""}</span></div>
+                    <span className="simple-avatar">{displayLeave.employeeName.slice(-2)}</span>
+                    <div><b>{displayLeave.employeeName}님이 {displayLeave.part} 반차를 사용합니다.</b><span>{isSelectedDate ? `${displayLeave.start}–${displayLeave.end}` : `${displayLeave.part} 반차`}{displayLeave.note ? ` · ${displayLeave.note}` : ""}</span></div>
                   </div>
 
                   {substituteRequired && request && (
@@ -124,7 +147,7 @@ function Dashboard({ snapshot, calendarMonth, monthlyLeaves, monthlyUnavailabili
                   )}
 
                   {!substituteRequired ? (
-                    <p className="substitute-not-required">{leaveEmployee?.role} 반차는 대근이 필요하지 않습니다.</p>
+                    <p className="substitute-not-required">{leaveEmployee?.role ?? "해당 직무"} 반차는 대근이 필요하지 않습니다.</p>
                   ) : request ? (
                     <div className="substitute-candidate-section">
                       {rankedCandidates.length ? (
@@ -142,16 +165,20 @@ function Dashboard({ snapshot, calendarMonth, monthlyLeaves, monthlyUnavailabili
                         <SubstituteAcceptForm requestId={request.id} candidates={candidateOptions} connected={snapshot.databaseConnected} nextPriority={(rankedCandidates.length + 1) as 1 | 2} />
                       ) : <p className="substitute-candidate-full"><Check size={17} /> 1·2순위 후보 등록이 완료되었습니다.</p>}
                     </div>
-                  ) : <p className="substitute-pending">대근 공석을 준비하고 있습니다.</p>}
-
-                  <form action={cancelLeave} className="cancel-leave-form">
-                    <input type="hidden" name="id" value={leave.id} />
-                    <button disabled={!snapshot.databaseConnected}>반차 취소</button>
-                  </form>
+                  ) : leaveSummary.substituteCandidates.length ? (
+                    <div className="substitute-rank-list" aria-label="대근 가능 후보 순위">
+                      {leaveSummary.substituteCandidates.map((candidate) => (
+                        <div className={`substitute-rank rank-${candidate.priority}`} key={candidate.employeeId}>
+                          <strong>{candidate.priority}순위</strong>
+                          <span><b>{candidate.employeeName}</b></span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : <p className="substitute-pending">아직 대근 가능 후보가 없습니다.</p>}
                 </article>
               );
             })}
-            {!leaves.length && <div className="simple-empty"><Umbrella size={30} /><b>반차 사용자가 없습니다.</b><span>위에서 바로 등록할 수 있습니다.</span></div>}
+            {!registeredLeaves.length && <div className="simple-empty"><Umbrella size={30} /><b>반차 사용자가 없습니다.</b><span>위에서 바로 등록할 수 있습니다.</span></div>}
           </div>
         </section>
       </div>
@@ -206,11 +233,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
   const { date: requestedDate, calendar, month } = await searchParams;
   const date = safeDate(requestedDate);
   const calendarMonth = calendar === "1" && month && /^\d{4}-\d{2}$/.test(month) && isValid(parseISO(`${month}-01`)) ? month : undefined;
-  const [snapshot, monthlyLeaves, monthlyUnavailabilities, unavailabilityList] = await Promise.all([
+  const [snapshot, registeredLeaves, monthlyLeaves, monthlyUnavailabilities, unavailabilityList] = await Promise.all([
     getDashboardSnapshot(date),
+    getRegisteredLeaves(),
     calendarMonth ? getMonthlyLeaves(`${calendarMonth}-01`) : Promise.resolve([]),
     calendarMonth ? getMonthlyUnavailabilities(`${calendarMonth}-01`) : Promise.resolve([]),
     getSubstituteUnavailabilityList(date),
   ]);
-  return <Dashboard snapshot={snapshot} calendarMonth={calendarMonth} monthlyLeaves={monthlyLeaves} monthlyUnavailabilities={monthlyUnavailabilities} unavailabilityList={unavailabilityList} />;
+  return <Dashboard snapshot={snapshot} registeredLeaves={registeredLeaves} calendarMonth={calendarMonth} monthlyLeaves={monthlyLeaves} monthlyUnavailabilities={monthlyUnavailabilities} unavailabilityList={unavailabilityList} />;
 }

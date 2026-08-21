@@ -24,6 +24,7 @@ type PinVerification = {
 export type LeaveBalanceData = {
   employeeId: string; name: string; role: string; year: number;
   totalDays: number; usedDays: number; remainingDays: number;
+  hrSnapshot?: unknown | null;
 };
 
 export type LeaveBalanceActionState = {
@@ -62,15 +63,18 @@ async function getProtectedLeaveBalance(employee: PinVerification, year: number)
   const rows = await requireDatabase()`
     SELECT COALESCE(total_days, 0)::float8 AS total_days,
       COALESCE(used_days, 0)::float8 AS used_days,
-      COALESCE(remaining_days, 0)::float8 AS remaining_days
+      COALESCE(remaining_days, 0)::float8 AS remaining_days,
+      hr.snapshot AS hr_snapshot
     FROM employees employee
     LEFT JOIN leave_balances balance ON balance.employee_id = employee.id AND balance.year = ${year}
+    LEFT JOIN hr_leave_snapshots hr ON hr.employee_id = employee.id
     WHERE employee.id = ${employee.id}::uuid
   `;
   const row = rows[0] as Record<string, unknown>;
   return {
     employeeId: employee.id, name: employee.name, role: employee.role, year,
     totalDays: Number(row.total_days), usedDays: Number(row.used_days), remainingDays: Number(row.remaining_days),
+    hrSnapshot: row.hr_snapshot ?? null,
   };
 }
 
@@ -191,9 +195,6 @@ export async function createLeave(_previousState: LeaveActionState, formData: Fo
     if (message.includes("uq_active_leave") || message.includes("duplicate key")) {
       return { status: "error", message: "이미 같은 날짜와 시간대에 등록된 반차가 있습니다." };
     }
-    if (message.includes("반차 잔액이 부족")) {
-      return { status: "error", message: "남은 휴가가 부족합니다. 개인 휴가 잔여량을 먼저 수정해 주세요." };
-    }
     return { status: "error", message: "반차를 등록하지 못했습니다. 잠시 후 다시 시도해 주세요." };
   }
 }
@@ -313,6 +314,8 @@ export async function updateCalendarLeave(_previousState: CalendarEditActionStat
         LEFT JOIN audio_rotation_settings rotation ON rotation.employee_id = employee.id
         WHERE leave.id = ${input.id}::uuid AND leave.employee_id = ${input.employeeId}::uuid
           AND leave.cancelled = false
+          AND leave.leave_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date
+          AND ${input.leaveDate}::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date
           AND EXTRACT(YEAR FROM leave.leave_date) = EXTRACT(YEAR FROM ${input.leaveDate}::date)
         FOR UPDATE OF leave
       ), effective_employee AS (
@@ -398,7 +401,7 @@ export async function updateCalendarLeave(_previousState: CalendarEditActionStat
       SELECT id::text FROM changed
     `;
     if (!result.length) {
-      return { status: "error", message: "수정할 수 없습니다. U 근무자는 후반 반차를 쓸 수 없으며 반차 연도는 기존과 같아야 합니다." };
+      return { status: "error", message: "이미 지난 반차는 수정할 수 없습니다. U 근무자는 후반 반차를 쓸 수 없으며 반차 연도는 기존과 같아야 합니다." };
     }
     revalidatePath("/");
     revalidatePath("/board");

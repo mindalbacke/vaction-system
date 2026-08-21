@@ -8,7 +8,7 @@ export async function getManagedEmployees() {
   if (!isDatabaseConfigured()) {
     return demoEmployees.map((employee) => ({ id: employee.id, name: employee.name, role: employee.role, active: true }));
   }
-  const rows = await getSql()`SELECT id::text, name, role, active FROM employees ORDER BY active DESC, role, name`;
+  const rows = await getSql()`SELECT id::text, name, role, active FROM employees WHERE deleted_at IS NULL ORDER BY active DESC, role, name`;
   return (rows as Row[]).map((row) => ({
     id: String(row.id), name: String(row.name), role: String(row.role) as EmployeeRole, active: Boolean(row.active),
   }));
@@ -33,7 +33,7 @@ export async function getManageData(date: string, includeAudit = false) {
   }
   const sql = getSql();
   const [employeeRows, shiftRows, programRows, relayRows, substituteRows, auditRows] = await Promise.all([
-    sql`SELECT id::text, name, role, active FROM employees ORDER BY active DESC, role, name`,
+    sql`SELECT id::text, name, role, active FROM employees WHERE deleted_at IS NULL ORDER BY active DESC, role, name`,
     sql`SELECT id::text, name, to_char(start_time,'HH24:MI') AS start_time, to_char(end_time,'HH24:MI') AS end_time FROM shift_types WHERE active = true AND name IN ('A','U') ORDER BY start_time`,
     sql`
       SELECT dns.id::text, npt.program_name,

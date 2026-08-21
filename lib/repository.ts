@@ -191,6 +191,40 @@ export async function getMonthlyLeaves(month: string): Promise<MonthlyLeave[]> {
   }));
 }
 
+export async function getRegisteredLeaves(): Promise<MonthlyLeave[]> {
+  if (!isDatabaseConfigured()) return [];
+  const rows = await getSql()`
+    SELECT lr.id::text, lr.employee_id::text, e.name AS employee_name, e.role,
+      lr.leave_date::text, lr.leave_type, lr.notes, substitute.name AS substitute_name,
+      candidate_list.candidates
+    FROM leave_requests lr
+    JOIN employees e ON e.id = lr.employee_id
+    LEFT JOIN substitute_requests request ON request.leave_request_id = lr.id
+      AND request.status <> '반차 취소'
+    LEFT JOIN employees substitute ON substitute.id = request.substitute_employee_id
+    LEFT JOIN LATERAL (
+      SELECT jsonb_agg(jsonb_build_object(
+        'employeeId', candidate_employee.id::text,
+        'employeeName', candidate_employee.name,
+        'priority', candidate.priority
+      ) ORDER BY candidate.priority) AS candidates
+      FROM substitute_candidates candidate
+      JOIN employees candidate_employee ON candidate_employee.id = candidate.employee_id
+      WHERE candidate.substitute_request_id = request.id
+    ) candidate_list ON true
+    WHERE lr.cancelled = false
+    ORDER BY lr.leave_date DESC, lr.created_at DESC
+  `;
+  return (rows as DbRow[]).map((row) => ({
+    id: String(row.id), employeeId: String(row.employee_id), employeeName: String(row.employee_name),
+    leaveDate: String(row.leave_date), part: row.leave_type as MonthlyLeave["part"],
+    note: row.notes ? String(row.notes) : undefined,
+    substituteCandidates: parseSubstituteCandidates(row.candidates),
+    substituteName: row.substitute_name ? String(row.substitute_name) : undefined,
+    substituteRequired: row.role !== "서무" && row.role !== "중계보조",
+  }));
+}
+
 export async function getMonthlyUnavailabilities(month: string): Promise<MonthlyUnavailability[]> {
   if (!isDatabaseConfigured()) return [];
   const rows = await getSql()`

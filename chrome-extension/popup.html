@@ -9,7 +9,7 @@
 <body>
   <header class="brand">
     <img src="mole-icon.png" alt="">
-    <div><strong>반차관리 휴가 도우미</strong><span>인사정보는 이 PC에서만 확인합니다.</span></div>
+    <div><strong>반차관리 휴가 도우미</strong><span>휴가 정보는 선택한 직원 계정으로 동기화됩니다.</span></div>
   </header>
 
   <main>
@@ -36,14 +36,14 @@
         <label>인사정보 아이디<input id="hrUsername" autocomplete="off"></label>
         <label>인사정보 비밀번호<input id="hrPassword" type="password" autocomplete="off"></label>
         <button id="fillLogin" class="primary wide">인사정보 로그인 화면에 입력</button>
-        <small>아이디와 비밀번호는 저장하거나 반차관리 서버로 보내지 않습니다. 로그인 버튼은 직접 누르세요.</small>
+        <small>아이디와 비밀번호는 저장하거나 반차관리 서버로 보내지 않습니다. 휴가 잔여량과 신청 기록만 Neon에 동기화됩니다.</small>
       </details>
       <button id="readHr" class="wide">사용·잔여 휴가 새로고침</button>
       <div class="balance-grid">
-        <article><span>공식 사용 휴가</span><strong id="officialUsed">-</strong></article>
-        <article><span>공식 잔여 휴가</span><strong id="officialBalance">-</strong></article>
+        <article><span>연차휴가</span><strong id="annualBalance">-</strong><small id="annualBalanceMeta">사용량 미확인</small></article>
+        <article><span>대휴</span><strong id="substituteBalance">-</strong><small id="substituteBalanceMeta">사용량 미확인</small></article>
         <article><span>미반영 반차</span><strong id="pendingBalance">-</strong></article>
-        <article class="accent"><span>실제 참고 가능량</span><strong id="availableBalance">-</strong></article>
+        <article class="accent"><span>결재 전 예상 잔여</span><strong id="availableBalance">-</strong></article>
       </div>
       <small id="hrSyncedAt">인사정보 휴가사용현황 화면에서 확인 버튼을 눌러 주세요.</small>
     </section>
@@ -52,11 +52,21 @@
       <h2>휴가 1일로 묶을 반차</h2>
       <div id="halfDayList" class="list empty">반차 내역을 먼저 불러와 주세요.</div>
       <button id="makePair" class="primary wide">선택한 반차 2건 묶기</button>
-      <small>신청일은 선택한 날짜 중 가장 빠른 날로 자동 지정됩니다.</small>
+      <small>사이트에 등록된 반차 중 두 건을 선택하세요. 신청일은 두 날짜 중 빠른 날로 자동 지정됩니다.</small>
     </section>
 
     <section>
-      <h2>신청 준비 및 사용기록</h2>
+      <div class="section-head"><h2>반차 사용 기록</h2><span id="halfDayUsageSummary" class="history-total">0일</span></div>
+      <div id="halfDayHistoryList" class="list empty">반차 내역을 먼저 불러와 주세요.</div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>인사정보 휴가 기록</h2><span id="vacationHistoryCount" class="history-total">0건</span></div>
+      <div id="vacationHistoryList" class="list empty">인사정보 휴가사용현황을 먼저 새로고침해 주세요.</div>
+    </section>
+
+    <section>
+      <h2>휴가 1일 신청 기록</h2>
       <div id="applicationList" class="list empty">아직 묶은 반차가 없습니다.</div>
     </section>
 

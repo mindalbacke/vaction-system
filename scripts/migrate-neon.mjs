@@ -15,6 +15,9 @@ const allMigrationFiles = [
   "db/011_substitute_candidates.sql",
   "db/012_schedule_employee_colors.sql",
   "db/013_audio_rotation_month_exclusions.sql",
+  "db/014_employee_soft_delete.sql",
+  "db/015_decouple_halfday_from_leave_balance.sql",
+  "db/016_hr_leave_snapshot_sync.sql",
 ];
 
 const requestedFiles = process.argv.slice(2);
